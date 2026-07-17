@@ -1,266 +1,71 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>3D Ethnic Suit Studio & Tailoring Assistant</title>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🥗 Leftover Rescue - Meal Planner</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1><i class="fa-solid fa-wand-magic-sparkles"></i> 3D Ethnic Suit Studio</h1>
-    <div class="header-right">
-      <button id="theme-toggle" class="theme-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
-      <span id="status-msg" class="status-msg">Ready</span>
-    </div>
-  </header>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🥗 Leftover Rescue</h1>
+                <p class="tagline">Turn your leftovers into delicious meals</p>
+            </div>
+        </header>
 
-  <div class="studio-container">
-    <div class="control-panel">
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="ingredientInput" 
+                        placeholder="Add an ingredient (e.g., chicken, tomato, rice)"
+                        class="ingredient-input"
+                    >
+                    <button id="addBtn" class="btn btn-add">+ Add</button>
+                </div>
+            </section>
 
-      <!-- STYLE & FABRIC CARD -->
-      <div class="card">
-        <h3><i class="fa-solid fa-shirt"></i> Style & Fabric</h3>
+            <!-- Fridge Inventory Section -->
+            <section class="fridge-section">
+                <h2>🧊 Your Fridge</h2>
+                <div id="ingredientTags" class="ingredient-tags">
+                    <p class="empty-message">No ingredients yet. Add some to get started!</p>
+                </div>
+            </section>
 
-        <div class="form-group">
-          <label>Suit Style</label>
-          <select id="suit-style">
-            <option value="pakistani">Pakistani Suit</option>
-            <option value="anarkali">Anarkali</option>
-            <option value="angrakha">Angrakha</option>
-            <option value="palazzo">Palazzo Suit</option>
-            <option value="straight">Straight / Cigarette Suit</option>
-            <option value="sharara">Sharara</option>
-            <option value="gharara">Gharara</option>
-            <option value="salwar_kameez">Salwar Kameez</option>
-            <option value="patiala">Patiala Suit</option>
-            <option value="churidar">Churidar Suit</option>
-            <option value="lehenga_choli">Lehenga Choli</option>
-            <option value="a_line">A-line Suit</option>
-            <option value="kaftan">Kaftan</option>
-            <option value="kurta_set">Kurta Set</option>
-            <option value="jacket_style">Jacket Style</option>
-            <option value="punjabi">Punjabi Suit</option>
-          </select>
-        </div>
+            <!-- Search Button -->
+            <section class="search-section">
+                <button id="searchBtn" class="btn btn-search" disabled>
+                    🔍 Find Recipes
+                </button>
+                <p class="recipe-count" id="recipeCount"></p>
+            </section>
 
-        <div class="form-group">
-          <label>Neck Style</label>
-          <select id="neck-style">
-            <option value="round">Round</option>
-            <option value="vneck">V-Neck</option>
-            <option value="boat">Boat</option>
-            <option value="high">High Collar</option>
-            <option value="mandarin">Mandarin</option>
-          </select>
-        </div>
+            <!-- Results Section -->
+            <section class="results-section">
+                <h2 id="resultsTitle" style="display: none;">🍳 Recipes You Can Make</h2>
+                <div id="recipesContainer" class="recipes-grid">
+                    <p class="empty-message" id="noResults">Search for recipes using the ingredients in your fridge!</p>
+                </div>
+                <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Finding delicious recipes...</p>
+                </div>
+            </section>
+        </main>
 
-        <div class="form-group">
-          <label>Sleeve Style</label>
-          <select id="sleeve-style">
-            <option value="full">Full Sleeve</option>
-            <option value="3_4">3/4 Sleeve</option>
-            <option value="short">Short Sleeve</option>
-            <option value="cap">Cap Sleeve</option>
-            <option value="sleeveless">Sleeveless</option>
-            <option value="bell">Bell Sleeve</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Bottom Style</label>
-          <select id="bottom-style">
-            <option value="straight">Straight / Cigarette</option>
-            <option value="palazzo">Palazzo</option>
-            <option value="sharara">Sharara</option>
-            <option value="gharara">Gharara</option>
-            <option value="salwar">Salwar</option>
-            <option value="patiala">Patiala</option>
-            <option value="churidar">Churidar</option>
-            <option value="lehenga">Lehenga</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Dupatta Style</label>
-          <select id="dupatta-style">
-            <option value="none">None</option>
-            <option value="shoulder">Shoulder Drape</option>
-            <option value="front">Front Drape</option>
-            <option value="both">Both Shoulders</option>
-            <option value="half">Half Drape</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Fabric Texture</label>
-          <select id="fabric-texture">
-            <option value="cotton">Cotton (matte)</option>
-            <option value="silk">Silk (sheen)</option>
-            <option value="velvet">Velvet (soft)</option>
-            <option value="georgette">Georgette (flowy)</option>
-            <option value="chiffon">Chiffon (sheer)</option>
-            <option value="banarasi">Banarasi (brocade)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Fabric Color</label>
-          <div class="fabric-row" id="fabric-palette"></div>
-        </div>
-
-        <div class="button-group">
-          <button class="btn btn-primary" id="download-png"><i class="fa-solid fa-download"></i> PNG</button>
-          <button class="btn btn-primary" id="export-pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-          <button class="btn btn-secondary" id="reset-design"><i class="fa-solid fa-rotate-right"></i> Reset</button>
-        </div>
-      </div>
-
-      <!-- MEASUREMENTS CARD -->
-      <div class="card">
-        <h3><i class="fa-solid fa-ruler-combined"></i> Measurements (inches)</h3>
-
-        <div class="form-group">
-          <label>Chest</label>
-          <div class="range-row">
-            <input type="range" id="chest" min="28" max="56" value="38">
-            <div class="val" id="chest-val">38"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Waist</label>
-          <div class="range-row">
-            <input type="range" id="waist" min="22" max="52" value="32">
-            <div class="val" id="waist-val">32"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Hip</label>
-          <div class="range-row">
-            <input type="range" id="hip" min="28" max="64" value="40">
-            <div class="val" id="hip-val">40"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Shoulder (across)</label>
-          <div class="range-row">
-            <input type="range" id="shoulder" min="12" max="24" value="15">
-            <div class="val" id="shoulder-val">15"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Neck Circumference</label>
-          <div class="range-row">
-            <input type="range" id="neck" min="10" max="24" value="13">
-            <div class="val" id="neck-val">13"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Armhole</label>
-          <div class="range-row">
-            <input type="range" id="armhole" min="12" max="26" value="18">
-            <div class="val" id="armhole-val">18"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Sleeve Length</label>
-          <div class="range-row">
-            <input type="range" id="sleeve-length" min="5" max="26" value="18">
-            <div class="val" id="sleeve-length-val">18"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Suit (Kameez) Length</label>
-          <div class="range-row">
-            <input type="range" id="suit-length" min="24" max="60" value="42">
-            <div class="val" id="suit-length-val">42"</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Bottom Length</label>
-          <div class="range-row">
-            <input type="range" id="bottom-length" min="20" max="44" value="38">
-            <div class="val" id="bottom-length-val">38"</div>
-          </div>
-        </div>
-
-        <div class="button-group">
-          <button class="btn btn-secondary" id="save-meas"><i class="fa-solid fa-floppy-disk"></i> Save</button>
-          <button class="btn btn-secondary" id="load-meas"><i class="fa-solid fa-folder-open"></i> Load</button>
-        </div>
-      </div>
-
-      <!-- CUTTING ASSISTANT CARD -->
-      <div class="card">
-        <h3><i class="fa-solid fa-scissors"></i> Cutting Assistant</h3>
-
-        <div class="button-group">
-          <button class="btn btn-secondary" id="calc-cut"><i class="fa-solid fa-calculator"></i> Calculate</button>
-          <button class="btn btn-secondary" id="print-cut"><i class="fa-solid fa-print"></i> Print</button>
-        </div>
-
-        <div class="table-container">
-          <table id="cut-table">
-            <thead><tr><th>Part</th><th>Formula</th><th>Size</th><th>Seam</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <canvas id="layout-canvas" class="layout-canvas"></canvas>
-      </div>
-
-      <!-- STITCHING GUIDE CARD -->
-      <div class="card">
-        <h3><i class="fa-solid fa-bezier-curve"></i> Stitching Guide</h3>
-        <div id="stitch-steps" class="stitch-content"></div>
-
-        <div class="button-group nav-row">
-          <button class="btn btn-secondary" id="prev-step"><i class="fa-solid fa-arrow-left"></i> Prev</button>
-          <span id="step-counter" class="step-counter">1 / 5</span>
-          <button class="btn btn-secondary" id="next-step">Next <i class="fa-solid fa-arrow-right"></i></button>
-        </div>
-      </div>
-
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Powered by Spoonacular API | Help reduce food waste 🌍</p>
+        </footer>
     </div>
 
-    <!-- 3D VIEWPORT -->
-    <div class="visualizer-viewport">
-      <div class="viewport-badge">
-        <i class="fa-solid fa-rotate"></i> 3D Studio — Drag to Orbit
-      </div>
-      <canvas id="viewer"></canvas>
-      <div class="viewport-controls">
-        <button class="control-btn" id="zoom-in" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-        <button class="control-btn" id="zoom-out" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-        <button class="control-btn" id="reset-view" title="Reset View"><i class="fa-solid fa-home"></i></button>
-      </div>
-    </div>
-  </div>
-
-  <script src="main.js"></script>
-  <script src="viewer.js"></script>
-  <script src="mannequin.js"></script>
-  <script src="fabric.js"></script>
-  <script src="tailoring.js"></script>
-  <script src="cutting.js"></script>
-  <script src="stitching.js"></script>
-  <script src="utils.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>

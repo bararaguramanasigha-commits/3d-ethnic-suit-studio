@@ -1,299 +1,170 @@
-// ==========================================
-// MAIN.JS - APP INITIALIZATION & CONTROL
-// ==========================================
+// Configuration
+const API_KEY = 'YOUR_SPOONACULAR_API_KEY'; // Replace with your actual API key
+const BASE_URL = 'https://api.spoonacular.com/recipes';
 
-const fabricPalette = [
-  '#8a1c40', '#1e3a8a', '#0d9488', '#d97706', '#2d6a4f', '#6b1d33',
-  '#ff6b6b', '#3b82f6', '#10b981', '#f59e0b', '#7c3aed', '#ef4444',
-  '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'
-];
+// DOM Elements
+const ingredientInput = document.getElementById('ingredientInput');
+const addBtn = document.getElementById('addBtn');
+const searchBtn = document.getElementById('searchBtn');
+const ingredientTags = document.getElementById('ingredientTags');
+const recipesContainer = document.getElementById('recipesContainer');
+const loadingSpinner = document.getElementById('loadingSpinner');
+const resultsTitle = document.getElementById('resultsTitle');
+const noResults = document.getElementById('noResults');
+const recipeCount = document.getElementById('recipeCount');
 
-let selectedColor = fabricPalette[0];
-let suitParams = {};
-let isDarkTheme = localStorage.getItem('theme') === 'dark';
+// State
+let ingredients = [];
 
-// ==========================================
-// THEME MANAGEMENT
-// ==========================================
+// Event Listeners
+addBtn.addEventListener('click', addIngredient);
+ingredientInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addIngredient();
+});
+searchBtn.addEventListener('click', searchRecipes);
 
-function initTheme() {
-  const themeToggle = document.getElementById('theme-toggle');
-  if (isDarkTheme) {
-    document.body.classList.add('dark-theme');
-  }
-  themeToggle.addEventListener('click', toggleTheme);
-}
-
-function toggleTheme() {
-  isDarkTheme = !isDarkTheme;
-  document.body.classList.toggle('dark-theme');
-  localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
-  updateStatus('Theme changed!');
-}
-
-// ==========================================
-// UI SETUP
-// ==========================================
-
-function setupFabricPalette() {
-  const paletteNode = document.getElementById('fabric-palette');
-  paletteNode.innerHTML = '';
-  fabricPalette.forEach((color, idx) => {
-    const dot = document.createElement('div');
-    dot.className = 'fabric-dot' + (idx === 0 ? ' active' : '');
-    dot.style.background = color;
-    dot.title = color;
-    dot.onclick = () => selectFabricColor(dot, color);
-    paletteNode.appendChild(dot);
-  });
-}
-
-function selectFabricColor(element, color) {
-  document.querySelectorAll('.fabric-dot').forEach(dot => dot.classList.remove('active'));
-  element.classList.add('active');
-  selectedColor = color;
-  applyMaterial();
-  updateStatus('Color updated!');
-}
-
-function bindRangeInputs() {
-  const inputs = ['chest', 'waist', 'hip', 'shoulder', 'neck', 'armhole', 'sleeve-length', 'suit-length', 'bottom-length'];
-  
-  inputs.forEach(id => {
-    const element = document.getElementById(id);
-    const valueDisplay = document.getElementById(id + '-val');
+// Functions
+function addIngredient() {
+    const ingredient = ingredientInput.value.trim();
     
-    element.addEventListener('input', () => {
-      valueDisplay.textContent = element.value + '"';
-      updateSuitFromMeasurements();
-      calculateCutting();
-    });
-  });
+    if (!ingredient) {
+        alert('Please enter an ingredient name');
+        return;
+    }
+    
+    if (ingredients.includes(ingredient.toLowerCase())) {
+        alert('This ingredient is already in your fridge!');
+        return;
+    }
+    
+    ingredients.push(ingredient.toLowerCase());
+    ingredientInput.value = '';
+    renderTags();
+    updateSearchButton();
+    ingredientInput.focus();
 }
 
-function bindSelectChanges() {
-  ['suit-style', 'neck-style', 'sleeve-style', 'bottom-style', 'dupatta-style', 'fabric-texture'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => {
-      updateStyle();
-      calculateCutting();
-    });
-  });
+function removeIngredient(ingredient) {
+    ingredients = ingredients.filter(ing => ing !== ingredient);
+    renderTags();
+    updateSearchButton();
 }
 
-function bindButtons() {
-  document.getElementById('download-png').addEventListener('click', downloadPNG);
-  document.getElementById('export-pdf').addEventListener('click', exportPDF);
-  document.getElementById('save-meas').addEventListener('click', saveMeasurements);
-  document.getElementById('load-meas').addEventListener('click', loadMeasurements);
-  document.getElementById('reset-design').addEventListener('click', resetDesign);
-  document.getElementById('calc-cut').addEventListener('click', calculateCutting);
-  document.getElementById('print-cut').addEventListener('click', () => window.print());
-  document.getElementById('prev-step').addEventListener('click', () => changeStep(-1));
-  document.getElementById('next-step').addEventListener('click', () => changeStep(1));
-  
-  // Viewport controls
-  document.getElementById('zoom-in').addEventListener('click', () => zoomCamera(1.2));
-  document.getElementById('zoom-out').addEventListener('click', () => zoomCamera(0.8));
-  document.getElementById('reset-view').addEventListener('click', resetView);
+function renderTags() {
+    if (ingredients.length === 0) {
+        ingredientTags.innerHTML = '<p class="empty-message">No ingredients yet. Add some to get started!</p>';
+        return;
+    }
+    
+    ingredientTags.innerHTML = ingredients.map(ing => `
+        <div class="tag">
+            <span>${capitalizeFirst(ing)}</span>
+            <button type="button" onclick="removeIngredient('${ing}')">✕</button>
+        </div>
+    `).join('');
 }
 
-// ==========================================
-// STYLE CONTROLLER
-// ==========================================
-
-function updateStyle() {
-  const style = document.getElementById('suit-style').value;
-  const neckStyle = document.getElementById('neck-style').value;
-  const sleeveStyle = document.getElementById('sleeve-style').value;
-  const bottomStyle = document.getElementById('bottom-style').value;
-  const dupattas = document.getElementById('dupatta-style').value;
-
-  const styleConfigs = {
-    'pakistani': { topLenFactor: 1.0, flareFactor: 1.0, bottomType: 'pant' },
-    'anarkali': { topLenFactor: 1.3, flareFactor: 3.0, bottomType: 'skirt' },
-    'angrakha': { topLenFactor: 0.9, flareFactor: 1.1, bottomType: 'pant' },
-    'palazzo': { topLenFactor: 1.0, flareFactor: 1.6, bottomType: 'palazzo' },
-    'straight': { topLenFactor: 0.95, flareFactor: 0.9, bottomType: 'pant' },
-    'sharara': { topLenFactor: 0.95, flareFactor: 2.2, bottomType: 'sharara' },
-    'gharara': { topLenFactor: 0.85, flareFactor: 2.5, bottomType: 'sharara' },
-    'salwar_kameez': { topLenFactor: 1.0, flareFactor: 1.2, bottomType: 'salwar' },
-    'patiala': { topLenFactor: 0.9, flareFactor: 1.8, bottomType: 'salwar' },
-    'churidar': { topLenFactor: 1.0, flareFactor: 0.95, bottomType: 'churidar' },
-    'lehenga_choli': { topLenFactor: 0.4, flareFactor: 3.5, bottomType: 'skirt' },
-    'a_line': { topLenFactor: 1.05, flareFactor: 1.8, bottomType: 'skirt' },
-    'kaftan': { topLenFactor: 1.1, flareFactor: 2.0, bottomType: 'pant' },
-    'kurta_set': { topLenFactor: 0.95, flareFactor: 1.3, bottomType: 'pant' },
-    'jacket_style': { topLenFactor: 0.6, flareFactor: 1.0, bottomType: 'pant' },
-    'punjabi': { topLenFactor: 0.9, flareFactor: 1.8, bottomType: 'salwar' }
-  };
-
-  const config = styleConfigs[style] || styleConfigs['pakistani'];
-  suitParams = {
-    ...config,
-    neckStyle,
-    sleeveStyle,
-    bottomStyle,
-    dupattas
-  };
-
-  updateSuitFromMeasurements();
-  applyMaterial();
-  updateStatus(`Style changed to ${style}`);
+function updateSearchButton() {
+    searchBtn.disabled = ingredients.length === 0;
 }
 
-// ==========================================
-// STATUS UPDATES
-// ==========================================
-
-function updateStatus(message) {
-  const status = document.getElementById('status-msg');
-  status.textContent = message;
-  setTimeout(() => {
-    status.textContent = 'Ready';
-  }, 2500);
+function capitalizeFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// ==========================================
-// MEASUREMENT STORAGE
-// ==========================================
-
-function saveMeasurements() {
-  const measurements = {
-    chest: document.getElementById('chest').value,
-    waist: document.getElementById('waist').value,
-    hip: document.getElementById('hip').value,
-    shoulder: document.getElementById('shoulder').value,
-    neck: document.getElementById('neck').value,
-    armhole: document.getElementById('armhole').value,
-    sleeveLength: document.getElementById('sleeve-length').value,
-    suitLength: document.getElementById('suit-length').value,
-    bottomLength: document.getElementById('bottom-length').value,
-    suitStyle: document.getElementById('suit-style').value,
-    fabricColor: selectedColor,
-    fabricTexture: document.getElementById('fabric-texture').value,
-    timestamp: new Date().toISOString()
-  };
-
-  localStorage.setItem('suitMeasurements', JSON.stringify(measurements));
-  updateStatus('Measurements saved!');
+async function searchRecipes() {
+    if (ingredients.length === 0) return;
+    
+    // Show loading state
+    loadingSpinner.style.display = 'flex';
+    recipesContainer.innerHTML = '';
+    resultsTitle.style.display = 'none';
+    noResults.style.display = 'none';
+    searchBtn.disabled = true;
+    
+    try {
+        // Build ingredients string
+        const ingredientList = ingredients.join(',+');
+        const url = `${BASE_URL}/findByIngredients?apiKey=${API_KEY}&ingredients=${ingredientList}&number=12&ranking=2`;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch recipes');
+        
+        const recipes = await response.json();
+        
+        if (recipes.length === 0) {
+            noResults.textContent = '😔 No recipes found with these ingredients. Try different ones!';
+            noResults.style.display = 'block';
+            loadingSpinner.style.display = 'none';
+            searchBtn.disabled = false;
+            recipeCount.textContent = '';
+            return;
+        }
+        
+        // Display results
+        resultsTitle.style.display = 'block';
+        displayRecipes(recipes);
+        recipeCount.textContent = `Found ${recipes.length} delicious recipe${recipes.length !== 1 ? 's' : ''}!`;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        recipesContainer.innerHTML = `
+            <p class="empty-message" style="grid-column: 1/-1;">
+                ⚠️ Error fetching recipes. Please check your API key and try again.
+            </p>
+        `;
+        recipeCount.textContent = '';
+    } finally {
+        loadingSpinner.style.display = 'none';
+        searchBtn.disabled = false;
+    }
 }
 
-function loadMeasurements() {
-  const saved = localStorage.getItem('suitMeasurements');
-  if (!saved) {
-    updateStatus('No saved measurements found');
-    return;
-  }
-
-  const measurements = JSON.parse(saved);
-  document.getElementById('chest').value = measurements.chest;
-  document.getElementById('waist').value = measurements.waist;
-  document.getElementById('hip').value = measurements.hip;
-  document.getElementById('shoulder').value = measurements.shoulder;
-  document.getElementById('neck').value = measurements.neck;
-  document.getElementById('armhole').value = measurements.armhole;
-  document.getElementById('sleeve-length').value = measurements.sleeveLength;
-  document.getElementById('suit-length').value = measurements.suitLength;
-  document.getElementById('bottom-length').value = measurements.bottomLength;
-  document.getElementById('suit-style').value = measurements.suitStyle;
-  document.getElementById('fabric-texture').value = measurements.fabricTexture;
-
-  // Update display values
-  document.getElementById('chest-val').textContent = measurements.chest + '"';
-  document.getElementById('waist-val').textContent = measurements.waist + '"';
-  document.getElementById('hip-val').textContent = measurements.hip + '"';
-  document.getElementById('shoulder-val').textContent = measurements.shoulder + '"';
-  document.getElementById('neck-val').textContent = measurements.neck + '"';
-  document.getElementById('armhole-val').textContent = measurements.armhole + '"';
-  document.getElementById('sleeve-length-val').textContent = measurements.sleeveLength + '"';
-  document.getElementById('suit-length-val').textContent = measurements.suitLength + '"';
-  document.getElementById('bottom-length-val').textContent = measurements.bottomLength + '"';
-
-  updateStyle();
-  updateStatus('Measurements loaded!');
+function displayRecipes(recipes) {
+    recipesContainer.innerHTML = recipes.map(recipe => {
+        const missingCount = recipe.missedIngredients?.length || 0;
+        const usedCount = recipe.usedIngredients?.length || 0;
+        const totalIngredients = usedCount + missingCount;
+        const matchPercentage = Math.round((usedCount / totalIngredients) * 100);
+        
+        return `
+            <div class="recipe-card">
+                <img src="${recipe.image}" alt="${recipe.title}" class="recipe-image">
+                <div class="recipe-content">
+                    <h3 class="recipe-title">${recipe.title}</h3>
+                    
+                    <div class="recipe-info">
+                        <div class="info-badge">✓ Match: ${matchPercentage}%</div>
+                        <div class="info-badge">📦 ${usedCount} ingredient${usedCount !== 1 ? 's' : ''} you have</div>
+                    </div>
+                    
+                    <div class="ingredients-section">
+                        <div class="ingredients-label">Ingredients Used:</div>
+                        <div class="ingredients-list">
+                            ${recipe.usedIngredients.map(ing => `
+                                <span class="ingredient-item">${capitalizeFirst(ing.name)}</span>
+                            `).join('')}
+                        </div>
+                        
+                        ${missingCount > 0 ? `
+                            <div class="ingredients-label" style="margin-top: 8px;">🛒 Missing:</div>
+                            <div class="ingredients-list">
+                                ${recipe.missedIngredients.map(ing => `
+                                    <span class="ingredient-item missing">${capitalizeFirst(ing.name)}</span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <a href="https://www.spoonacular.com/recipes/${recipe.id}" target="_blank" class="recipe-link">
+                        View Full Recipe →
+                    </a>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
-function resetDesign() {
-  document.getElementById('suit-style').value = 'pakistani';
-  document.getElementById('neck-style').value = 'round';
-  document.getElementById('sleeve-style').value = 'full';
-  document.getElementById('bottom-style').value = 'straight';
-  document.getElementById('dupatta-style').value = 'none';
-  document.getElementById('fabric-texture').value = 'cotton';
-  document.getElementById('chest').value = 38;
-  document.getElementById('waist').value = 32;
-  document.getElementById('hip').value = 40;
-  document.getElementById('shoulder').value = 15;
-  document.getElementById('neck').value = 13;
-  document.getElementById('armhole').value = 18;
-  document.getElementById('sleeve-length').value = 18;
-  document.getElementById('suit-length').value = 42;
-  document.getElementById('bottom-length').value = 38;
-
-  selectedColor = fabricPalette[0];
-
-  document.querySelectorAll('.fabric-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === 0);
-  });
-
-  ['chest', 'waist', 'hip', 'shoulder', 'neck', 'armhole', 'sleeve-length', 'suit-length', 'bottom-length'].forEach(id => {
-    document.getElementById(id + '-val').textContent = document.getElementById(id).value + '"';
-  });
-
-  updateStyle();
-  updateStatus('Design reset to defaults');
-}
-
-// ==========================================
-// EXPORT FUNCTIONS
-// ==========================================
-
-function downloadPNG() {
-  const link = document.createElement('a');
-  link.download = `3d-suit-design-${new Date().toISOString().split('T')[0]}.png`;
-  link.href = renderer.domElement.toDataURL('image/png');
-  link.click();
-  updateStatus('PNG downloaded!');
-}
-
-function exportPDF() {
-  const element = document.querySelector('.studio-container');
-  const opt = {
-    margin: 10,
-    filename: `3d-suit-design-${new Date().toISOString().split('T')[0]}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
-  };
-  html2pdf().set(opt).save();
-  updateStatus('PDF exported!');
-}
-
-// ==========================================
-// APP INITIALIZATION
-// ==========================================
-
-function initializeApp() {
-  console.log('Initializing 3D Ethnic Suit Studio...');
-  
-  initTheme();
-  setupFabricPalette();
-  bindRangeInputs();
-  bindSelectChanges();
-  bindButtons();
-  
-  initThreeJS();
-  buildMannequin();
-  buildSuitMeshes();
-  
-  loadMeasurements();
-  updateStyle();
-  calculateCutting();
-  renderStitching();
-  
-  updateStatus('App loaded successfully!');
-  console.log('✓ 3D Ethnic Suit Studio Ready');
-}
-
-window.addEventListener('load', initializeApp);
-window.addEventListener('resize', onWindowResize);
+// Initialize
+updateSearchButton();
+ingredientInput.focus();
